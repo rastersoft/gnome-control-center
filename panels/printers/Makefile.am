@@ -42,6 +42,8 @@ libprinters_la_SOURCES =		\
 	pp-options-dialog.h		\
 	pp-job.c			\
 	pp-job.h			\
+	pp-details-dialog.c		\
+	pp-details-dialog.h		\
 	pp-jobs-dialog.c		\
 	pp-jobs-dialog.h		\
 	pp-authentication-dialog.c	\
