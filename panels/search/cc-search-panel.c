@@ -21,6 +21,7 @@
 #include "cc-search-panel.h"
 #include "cc-search-locations-dialog.h"
 #include "cc-search-resources.h"
+#include "dndlistbox.h"
 #include "shell/list-box-helper.h"
 
 #include <gio/gdesktopappinfo.h>
@@ -429,14 +430,79 @@ switch_settings_mapping_get_default_disabled (GValue *value,
                                               user_data, FALSE);
 }
 
+static gboolean
+row_on_button_pressed (GtkWidget      *row,
+                       GdkEventButton *event,
+                       CcSearchPanel  *self)
+{
+  /* unset sort function to allow moving rows with drag and drop. */
+  gtk_list_box_set_sort_func (GTK_LIST_BOX (self->priv->list_box), NULL, NULL, NULL);
+
+  if (gdk_event_get_event_type ((GdkEvent *)event) == GDK_BUTTON_PRESS)
+    {
+      DndListBox *box = DND_LIST_BOX (self->priv->list_box);
+
+      if (event->button == GDK_BUTTON_PRIMARY)
+        {
+          dnd_list_box_set_drag_row (box, row, event);
+
+          return FALSE;
+        }
+
+      dnd_list_box_set_drag_row (box, NULL, NULL);
+    }
+
+  return FALSE;
+}
+
+static GtkWidget *
+create_row (GAppInfo  *app_info,
+            GtkWidget *switcher)
+{
+  GtkWidget *row, *event_box, *box, *w;
+  GIcon *icon;
+  gint width, height;
+
+  box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+  gtk_widget_set_hexpand (box, TRUE);
+  gtk_container_set_border_width (GTK_CONTAINER (box), 6);
+
+  icon = g_app_info_get_icon (app_info);
+  if (icon == NULL)
+    icon = g_themed_icon_new ("application-x-executable");
+  else
+    g_object_ref (icon);
+
+  w = gtk_image_new_from_gicon (icon, GTK_ICON_SIZE_DND);
+  gtk_icon_size_lookup (GTK_ICON_SIZE_DND, &width, &height);
+  gtk_image_set_pixel_size (GTK_IMAGE (w), MAX (width, height));
+  gtk_widget_set_margin_start (w, 10);
+  gtk_container_add (GTK_CONTAINER (box), w);
+  g_object_unref (icon);
+
+  w = gtk_label_new (g_app_info_get_name (app_info));
+  gtk_container_add (GTK_CONTAINER (box), w);
+
+  if (switcher != NULL)
+    {
+      gtk_box_pack_end (GTK_BOX (box), switcher, FALSE, FALSE, 0);
+      gtk_widget_set_valign (switcher, GTK_ALIGN_CENTER);
+    }
+
+  event_box = gtk_event_box_new ();
+  gtk_container_add (GTK_CONTAINER (event_box), box);
+  row = gtk_list_box_row_new ();
+  gtk_container_add (GTK_CONTAINER (row), event_box);
+
+  return row;
+}
+
 static void
 search_panel_add_one_app_info (CcSearchPanel *self,
                                GAppInfo *app_info,
                                gboolean default_enabled)
 {
-  GtkWidget *row, *box, *w;
-  GIcon *icon;
-  gint width, height;
+  GtkWidget *row, *w;
 
   /* gnome-control-center is special cased in the shell,
      and is not configurable */
@@ -447,34 +513,12 @@ search_panel_add_one_app_info (CcSearchPanel *self,
   /* reset valignment of the list box */
   gtk_widget_set_valign (self->priv->list_box, GTK_ALIGN_FILL);
 
-  row = gtk_list_box_row_new ();
-  box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
-  gtk_container_add (GTK_CONTAINER (row), box);
-  gtk_widget_set_hexpand (box, TRUE);
-  gtk_container_set_border_width (GTK_CONTAINER (box), 6);
+  w = gtk_switch_new ();
+  row = create_row (app_info, w);
   g_object_set_data_full (G_OBJECT (row), "app-info",
                           g_object_ref (app_info), g_object_unref);
   g_object_set_data (G_OBJECT (row), "self", self);
   gtk_container_add (GTK_CONTAINER (self->priv->list_box), row);
-
-  icon = g_app_info_get_icon (app_info);
-  if (icon == NULL)
-    icon = g_themed_icon_new ("application-x-executable");
-  else
-    g_object_ref (icon);
-
-  w = gtk_image_new_from_gicon (icon, GTK_ICON_SIZE_DIALOG);
-  gtk_icon_size_lookup (GTK_ICON_SIZE_DIALOG, &width, &height);
-  gtk_image_set_pixel_size (GTK_IMAGE (w), MAX (width, height));
-  gtk_container_add (GTK_CONTAINER (box), w);
-  g_object_unref (icon);
-
-  w = gtk_label_new (g_app_info_get_name (app_info));
-  gtk_container_add (GTK_CONTAINER (box), w);
-
-  w = gtk_switch_new ();
-  gtk_widget_set_valign (w, GTK_ALIGN_CENTER);
-  gtk_box_pack_end (GTK_BOX (box), w, FALSE, FALSE, 0);
 
   if (default_enabled)
     {
@@ -494,6 +538,11 @@ search_panel_add_one_app_info (CcSearchPanel *self,
                                     switch_settings_mapping_set_default_disabled,
                                     row, NULL);
     }
+
+  g_signal_connect (row,
+                    "button-press-event",
+                    G_CALLBACK (row_on_button_pressed),
+                    self);
 
   gtk_widget_show_all (row);
 }
@@ -757,6 +806,45 @@ cc_search_panel_constructed (GObject *object)
   cc_shell_embed_widget_in_header (cc_panel_get_shell (CC_PANEL (self)), box);
 }
 
+static GtkWidget *
+create_placeholder_row (gpointer item,
+                        gpointer user_data)
+{
+  GtkWidget *row, *w;
+  GAppInfo *app_info;
+
+  app_info = g_object_get_data (G_OBJECT (item), "app-info");
+
+  w = gtk_switch_new ();
+  gtk_switch_set_active (GTK_SWITCH (w), TRUE);
+
+  row = create_row (app_info, w);
+  gtk_style_context_add_class (gtk_widget_get_style_context (row), "view");
+
+  w = gtk_frame_new (NULL);
+  gtk_container_add (GTK_CONTAINER (w), row);
+
+  return w;
+}
+
+static void
+on_row_moved (DndListBox    *listbox,
+              GtkListBoxRow *row,
+              CcSearchPanel *self)
+{
+  GAppInfo *app_info;
+  const char *app_info_id;
+  gint idx;
+
+  idx = gtk_list_box_row_get_index (row);
+  app_info = g_object_get_data (G_OBJECT (row), "app-info");
+  app_info_id = g_app_info_get_id (app_info);
+
+  g_hash_table_replace (self->priv->sort_order, g_strdup (app_info_id), GINT_TO_POINTER (idx));
+
+  search_panel_propagate_sort_order (self);
+}
+
 static void
 cc_search_panel_init (CcSearchPanel *self)
 {
@@ -784,7 +872,10 @@ cc_search_panel_init (CcSearchPanel *self)
     }
 
   frame = WID ("search_frame");
-  widget = GTK_WIDGET (gtk_list_box_new ());
+  widget = GTK_WIDGET (dnd_list_box_new ());
+  dnd_list_box_set_create_placeholder_func (DND_LIST_BOX (widget),
+                                            create_placeholder_row, NULL, g_object_unref);
+  g_signal_connect (widget, "row-moved", G_CALLBACK (on_row_moved), self);
   gtk_list_box_set_sort_func (GTK_LIST_BOX (widget),
                               (GtkListBoxSortFunc)list_sort_func, self, NULL);
   gtk_list_box_set_header_func (GTK_LIST_BOX (widget), cc_list_box_update_header_func, NULL, NULL);

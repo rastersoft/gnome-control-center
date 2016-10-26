@@ -18,6 +18,8 @@ libsearch_la_SOURCES =		\
 	$(BUILT_SOURCES)	\
 	cc-search-locations-dialog.c \
 	cc-search-locations-dialog.h \
+	dndlistbox.h		\
+	dndlistbox.c		\
 	cc-search-panel.c	\
 	cc-search-panel.h
 
