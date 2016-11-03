@@ -51,6 +51,32 @@ static guint signals[LAST_SIGNAL] = { 0 };
 
 #define ROW_OUTSIDE_LISTBOX -1
 
+static const gchar *dnd_handler_css =
+  "@define-color handle_color alpha(currentColor, 0.1);"
+  "row box {"
+  "  background-size: 2px 16px;"
+  "  background-repeat: no-repeat;"
+  "  background-position: 0px center;"
+  "  background-image: linear-gradient(to bottom,"
+  "                                    transparent 1px,"
+  "                                    @handle_color 1px,"
+  "                                    @handle_color 3px,"
+  "                                    transparent 3px,"
+  "                                    transparent 5px,"
+  "                                    @handle_color 5px,"
+  "                                    @handle_color 7px,"
+  "                                    transparent 7px,"
+  "                                    transparent 9px,"
+  "                                    @handle_color 9px,"
+  "                                    @handle_color 11px,"
+  "                                    transparent 11px,"
+  "                                    transparent 13px,"
+  "                                    @handle_color 13px,"
+  "                                    @handle_color 15px,"
+  "                                    transparent 15px"
+  "                                    );"
+  "}";
+
 GtkWidget *
 dnd_list_box_new (void)
 {
@@ -458,6 +484,8 @@ static const GtkTargetEntry targets [] = {
 static void
 dnd_list_box_init (DndListBox *self)
 {
+  GtkCssProvider *provider;
+
   self->source_targets = gtk_target_list_new (targets, G_N_ELEMENTS (targets));
   gtk_target_list_add_text_targets (self->source_targets, 0);
 
@@ -471,4 +499,14 @@ dnd_list_box_init (DndListBox *self)
   self->row_destination_index = ROW_OUTSIDE_LISTBOX;
   self->row_source_row_offset = 0;
   self->is_on_drag = FALSE;
+
+  /* Custom CSS */
+  provider = gtk_css_provider_new ();
+  gtk_css_provider_load_from_data (provider, dnd_handler_css, -1, NULL);
+
+  gtk_style_context_add_provider_for_screen (gdk_screen_get_default (),
+                                             GTK_STYLE_PROVIDER (provider),
+                                             GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+
+  g_object_unref (provider);
 }
