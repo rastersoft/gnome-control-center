@@ -3,7 +3,6 @@
   <!-- interface-requires gtk+ 3.0 -->
   <object class="GtkScrolledWindow" id="search_vbox">
     <property name="visible">True</property>
-    <property name="shadow-type">in</property>
     <child>
       <object class="GtkBox">
         <property name="visible">True</property>
