@@ -680,6 +680,24 @@ populate_search_providers (CcSearchPanel *self)
 }
 
 static void
+on_content_size_changed (GtkWidget     *widget,
+                         GtkAllocation *allocation,
+                         gpointer       data)
+{
+  if (allocation->height < 490)
+    {
+      gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (widget),
+                                      GTK_POLICY_NEVER, GTK_POLICY_NEVER);
+    }
+  else
+    {
+      gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (widget),
+                                      GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+      gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (widget), 490);
+    }
+}
+
+static void
 cc_search_panel_dispose (GObject *object)
 {
   CcSearchPanelPrivate *priv = CC_SEARCH_PANEL (object)->priv;
@@ -716,6 +734,8 @@ cc_search_panel_constructed (GObject *object)
 
   /* add the disable all switch */
   search_box = WID ("search_vbox");
+  g_signal_connect (search_box, "size-allocate",
+                    G_CALLBACK (on_content_size_changed), NULL);
   box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
 
   widget = gtk_switch_new ();
