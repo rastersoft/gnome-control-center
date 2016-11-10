@@ -44,6 +44,7 @@ struct _CcGoaPanel
   GtkWidget *accounts_listbox;
   GtkWidget *edit_account_dialog;
   GtkWidget *edit_account_headerbar;
+  GtkWidget *new_account_vbox;
   GtkWidget *providers_listbox;
   GtkWidget *stack;
   GtkWidget *accounts_vbox;
@@ -75,12 +76,34 @@ static void get_all_providers_cb (GObject      *source,
                                   GAsyncResult *res,
                                   gpointer      user_data);
 
+static void add_provider_row (CcGoaPanel  *self,
+                              GoaProvider *provider);
+
+static void show_page_account (CcGoaPanel *panel,
+                               GoaObject  *object);
+
 CC_PANEL_REGISTER (CcGoaPanel, cc_goa_panel);
 
 enum {
   PROP_0,
   PROP_PARAMETERS
 };
+
+/* ---------------------------------------------------------------------------------------------------- */
+
+static void
+reset_headerbar (CcGoaPanel *self)
+{
+  gtk_header_bar_set_title (GTK_HEADER_BAR (self->edit_account_headerbar), NULL);
+  gtk_header_bar_set_subtitle (GTK_HEADER_BAR (self->edit_account_headerbar), NULL);
+  gtk_header_bar_set_show_close_button (GTK_HEADER_BAR (self->edit_account_headerbar), TRUE);
+
+  /* Remove any leftover widgets */
+  gtk_container_foreach (GTK_CONTAINER (self->edit_account_headerbar),
+                         (GtkCallback) gtk_widget_destroy,
+                         NULL);
+
+}
 
 /* ---------------------------------------------------------------------------------------------------- */
 
@@ -106,7 +129,7 @@ add_provider_row (CcGoaPanel  *self,
 
   if (provider == NULL)
     {
-      g_object_set_data (G_OBJECT (row), "provider", NULL);
+      g_object_set_data (G_OBJECT (row), "goa-provider", NULL);
       icon = g_themed_icon_new_with_default_fallbacks ("goa-account");
       name = g_strdup (C_("Online Account", "Other"));
     }
@@ -130,6 +153,38 @@ add_provider_row (CcGoaPanel  *self,
   g_free (markup);
   g_free (name);
   g_object_unref (icon);
+}
+
+static void
+on_provider_row_activated (GtkListBox    *listbox,
+                           GtkListBoxRow *activated_row,
+                           CcGoaPanel    *self)
+{
+  GoaProvider *provider;
+  GoaObject *object;
+  GError *error;
+
+  error = NULL;
+  provider = g_object_get_data (G_OBJECT (activated_row), "goa-provider");
+
+  gtk_container_foreach (GTK_CONTAINER (self->new_account_vbox),
+                         (GtkCallback) gtk_widget_destroy,
+                         NULL);
+
+  reset_headerbar (self);
+
+  /* Move to the new account page */
+  gtk_stack_set_visible_child_name (GTK_STACK (self->stack), "new-account");
+
+  /* This spins gtk_dialog_run() */
+  object = goa_provider_add_account (provider,
+                                     self->client,
+                                     GTK_DIALOG (self->edit_account_dialog),
+                                     GTK_BOX (self->new_account_vbox),
+                                     &error);
+
+  if (object)
+    show_page_account (self, object);
 }
 
 /* ---------------------------------------------------------------------------------------------------- */
@@ -344,11 +399,13 @@ cc_goa_panel_class_init (CcGoaPanelClass *klass)
   gtk_widget_class_bind_template_child (widget_class, CcGoaPanel, accounts_vbox);
   gtk_widget_class_bind_template_child (widget_class, CcGoaPanel, edit_account_dialog);
   gtk_widget_class_bind_template_child (widget_class, CcGoaPanel, edit_account_headerbar);
+  gtk_widget_class_bind_template_child (widget_class, CcGoaPanel, new_account_vbox);
   gtk_widget_class_bind_template_child (widget_class, CcGoaPanel, providers_listbox);
   gtk_widget_class_bind_template_child (widget_class, CcGoaPanel, stack);
 
   gtk_widget_class_bind_template_callback (widget_class, on_edit_account_dialog_delete_event);
   gtk_widget_class_bind_template_callback (widget_class, on_listbox_row_activated);
+  gtk_widget_class_bind_template_callback (widget_class, on_provider_row_activated);
 }
 
 /* ---------------------------------------------------------------------------------------------------- */
@@ -373,6 +430,7 @@ show_page_account (CcGoaPanel  *panel,
   provider = NULL;
 
   panel->active_object = object;
+  reset_headerbar (panel);
 
   /* Move to the account editor page */
   gtk_stack_set_visible_child_name (GTK_STACK (panel->stack), "editor");
