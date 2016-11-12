@@ -344,6 +344,9 @@ go_to_page (PpNewPrinterDialog *dialog,
 
   stack = GTK_STACK (WID ("headerbar-topright-buttons"));
   gtk_stack_set_visible_child_name (stack, page);
+
+  stack = GTK_STACK (WID ("headerbar-topleft-buttons"));
+  gtk_stack_set_visible_child_name (stack, page);
 }
 
 static gchar *
@@ -417,6 +420,18 @@ auth_entries_changed (GtkEditable *editable,
 
   g_clear_pointer (&username, g_free);
   g_clear_pointer (&password, g_free);
+}
+
+static void
+on_go_back_button_clicked (GtkButton *button,
+                           gpointer   user_data)
+{
+  PpNewPrinterDialog        *dialog = PP_NEW_PRINTER_DIALOG (user_data);
+  PpNewPrinterDialogPrivate *priv = dialog->priv;
+
+  pp_samba_set_auth_info (priv->samba_host, NULL, NULL);
+
+  go_to_page (dialog, ADDPRINTER_PAGE);
 }
 
 static void
@@ -519,6 +534,7 @@ pp_new_printer_dialog_init (PpNewPrinterDialog *dialog)
   /* Authentication form widgets */
   g_signal_connect (WID ("username-entry"), "changed", G_CALLBACK (auth_entries_changed), dialog);
   g_signal_connect (WID ("password-entry"), "changed", G_CALLBACK (auth_entries_changed), dialog);
+  g_signal_connect (WID ("go-back-button"), "clicked", G_CALLBACK (on_go_back_button_clicked), dialog);
 
   /* Set junctions */
   widget = WID ("scrolledwindow1");
