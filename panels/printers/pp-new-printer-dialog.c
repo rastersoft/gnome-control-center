@@ -426,6 +426,10 @@ on_go_back_button_clicked (GtkButton *button,
 
   pp_samba_set_auth_info (priv->samba_host, NULL, NULL);
 
+  /* Change the selection in order to update the buttons according to the
+   * selected entry. */
+  gtk_tree_selection_unselect_all (gtk_tree_view_get_selection (priv->treeview));
+
   go_to_page (dialog, ADDPRINTER_PAGE);
 }
 
