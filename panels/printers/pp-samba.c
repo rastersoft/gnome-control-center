@@ -112,6 +112,9 @@ get_auth_info (gpointer user_data)
   SMBData *data = (SMBData *) user_data;
   PpSamba *samba = PP_SAMBA (data->samba);
 
+  if (samba->priv->waiting == TRUE)
+    return FALSE;
+
   samba->priv->waiting = TRUE;
 
   g_signal_emit_by_name (samba, "authentication-required");
