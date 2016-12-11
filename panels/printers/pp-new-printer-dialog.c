@@ -75,8 +75,6 @@ static void     new_printer_dialog_response_cb (GtkDialog *_dialog,
 static void     update_dialog_state (PpNewPrinterDialog *dialog);
 static void     add_devices_to_list (PpNewPrinterDialog  *dialog,
                                      GList               *devices);
-static void     remove_device_from_list (PpNewPrinterDialog *dialog,
-                                         const gchar        *device_name);
 
 enum
 {
@@ -291,9 +289,6 @@ get_authenticated_samba_devices_cb (GObject      *source_object,
 
       if (!cancelled)
         {
-          remove_device_from_list (dialog,
-                                   data->server_name);
-
           if (result->devices != NULL)
             {
               add_devices_to_list (dialog, result->devices);
@@ -634,37 +629,6 @@ device_selection_changed_cb (GtkTreeSelection *selection,
       else
         gtk_stack_set_visible_child_name (GTK_STACK (stack), ADDPRINTER_PAGE);
     }
-}
-
-static void
-remove_device_from_list (PpNewPrinterDialog *dialog,
-                         const gchar        *device_name)
-{
-  PpNewPrinterDialogPrivate *priv = dialog->priv;
-  PpPrintDevice             *device;
-  GtkTreeIter                iter;
-  gboolean                   cont;
-
-  cont = gtk_tree_model_get_iter_first (GTK_TREE_MODEL (priv->store), &iter);
-  while (cont)
-    {
-      gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter,
-                          DEVICE_COLUMN, &device,
-                          -1);
-
-      if (g_strcmp0 (pp_print_device_get_device_name (device), device_name) == 0)
-        {
-          gtk_list_store_remove (priv->store, &iter);
-          g_object_unref (device);
-          break;
-        }
-
-      g_object_unref (device);
-
-      cont = gtk_tree_model_iter_next (GTK_TREE_MODEL (priv->store), &iter);
-    }
-
-  update_dialog_state (dialog);
 }
 
 static gboolean
