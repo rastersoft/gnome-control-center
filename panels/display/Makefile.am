@@ -4,6 +4,10 @@ cappletname = display
 noinst_LTLIBRARIES = libdisplay.la
 
 libdisplay_la_SOURCES =		\
+	cc-display-config.c	\
+	cc-display-config.h	\
+	cc-display-config-manager.c	\
+	cc-display-config-manager.h	\
 	cc-display-panel.c	\
 	cc-display-panel.h	\
 	scrollarea.c		\
