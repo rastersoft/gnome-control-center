@@ -769,6 +769,24 @@ connection_test_cb (GObject      *source_object,
 }
 
 static void
+on_content_size_changed (GtkWidget     *widget,
+                         GtkAllocation *allocation,
+                         gpointer       user_data)
+{
+  if (allocation->height > 490)
+    {
+      gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (widget),
+                                      GTK_POLICY_NEVER, GTK_POLICY_NEVER);
+    }
+  else
+    {
+      gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (widget),
+                                      GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+      gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (widget), 490);
+    }
+}
+
+static void
 cc_printers_panel_init (CcPrintersPanel *self)
 {
   CcPrintersPanelPrivate *priv;
@@ -830,6 +848,10 @@ cc_printers_panel_init (CcPrintersPanel *self)
     gtk_builder_get_object (priv->builder, "main-vbox");
 
   /* connect signals */
+  widget = (GtkWidget*)
+    gtk_builder_get_object (priv->builder, "scrolled-window");
+  g_signal_connect (widget, "size-allocate", G_CALLBACK (on_content_size_changed), NULL);
+
   widget = (GtkWidget*)
     gtk_builder_get_object (priv->builder, "printer-add-button");
   g_signal_connect (widget, "clicked", G_CALLBACK (printer_add_cb), self);
